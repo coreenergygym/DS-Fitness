@@ -298,6 +298,42 @@ export default function MemberProfile() {
   }
 
   async function deletePayment(payment) {
+    async function deleteMember() {
+  const confirmed = window.confirm(
+    `Delete ${member.full_name} (${member.member_code})?\n\nThis will permanently delete the member and their membership/payment history. This cannot be undone.`
+  )
+
+  if (!confirmed) return
+
+  setActionError('')
+
+  try {
+    // Delete member photo from Supabase Storage first
+    if (member.photo_path) {
+      const { error: photoError } = await supabase.storage
+        .from('member-photos')
+        .remove([member.photo_path])
+
+      if (photoError) {
+        console.warn('Could not delete member photo:', photoError)
+      }
+    }
+
+    // Delete member record.
+    // Memberships/payments linked with ON DELETE CASCADE
+    // will be removed automatically.
+    const { error } = await supabase
+      .from('members')
+      .delete()
+      .eq('id', member.id)
+
+    if (error) throw error
+
+    navigate('/admin/members')
+  } catch (err) {
+    setActionError(err.message || 'Could not delete this member.')
+  }
+  }
     const confirmed = window.confirm(
       `Delete this payment of ${formatRupees(payment.amount)} dated ${formatDateDisplay(payment.payment_date)}? This cannot be undone.`
     )
@@ -403,11 +439,30 @@ export default function MemberProfile() {
         <div>
           <h2 style={{ fontSize: '1.5rem' }}>{member.full_name}</h2>
           <p style={{ margin: 0 }}>{member.member_code} · {member.mobile}</p>
-        </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {!editingPersonal && <button className="btn btn-secondary" onClick={startEditPersonal}>Edit Info</button>}
-          <button className="btn btn-primary" onClick={startRenewal}>🔄 Renew Membership</button>
-        </div>
+        </div><div style={{ marginLeft: 'auto', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+  {!editingPersonal && (
+    <button className="btn btn-secondary" onClick={startEditPersonal}>
+      Edit Info
+    </button>
+  )}
+
+  <button className="btn btn-primary" onClick={startRenewal}>
+    🔄 Renew Membership
+  </button>
+
+  {!editingPersonal && (
+    <button
+      className="btn btn-secondary"
+      onClick={deleteMember}
+      style={{
+        color: '#dc2626',
+        borderColor: '#dc2626'
+      }}
+    >
+      🗑️ Delete Member
+    </button>
+  )}
+</div>
       </div>
 
       {currentMembership && (
