@@ -13,6 +13,7 @@ import { formatDateDisplay, addDays, todayISO } from '../lib/dateUtils'
 import { formatRupees } from '../lib/format'
 
 export default function MemberProfile() {
+  
   const { id } = useParams()
   const navigate = useNavigate()
   const { settings } = useGymSettings()
@@ -296,9 +297,7 @@ export default function MemberProfile() {
       setActionError(err.message || 'Could not update this payment.')
     }
   }
-
-  async function deletePayment(payment) {
-    async function deleteMember() {
+async function deleteMember() {
   const confirmed = window.confirm(
     `Delete ${member.full_name} (${member.member_code})?\n\nThis will permanently delete the member and their membership/payment history. This cannot be undone.`
   )
@@ -308,7 +307,6 @@ export default function MemberProfile() {
   setActionError('')
 
   try {
-    // Delete member photo from Supabase Storage first
     if (member.photo_path) {
       const { error: photoError } = await supabase.storage
         .from('member-photos')
@@ -319,9 +317,6 @@ export default function MemberProfile() {
       }
     }
 
-    // Delete member record.
-    // Memberships/payments linked with ON DELETE CASCADE
-    // will be removed automatically.
     const { error } = await supabase
       .from('members')
       .delete()
@@ -333,7 +328,9 @@ export default function MemberProfile() {
   } catch (err) {
     setActionError(err.message || 'Could not delete this member.')
   }
-  }
+}
+  async function deletePayment(payment) {
+    
     const confirmed = window.confirm(
       `Delete this payment of ${formatRupees(payment.amount)} dated ${formatDateDisplay(payment.payment_date)}? This cannot be undone.`
     )
