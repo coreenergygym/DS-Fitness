@@ -40,7 +40,7 @@ export default function Dashboard() {
           supabase.from('members').select('id').gte('created_at', startOfMonthISO()),
           // member_id + expiry/fee is all the dashboard needs, keeps the payload small
           supabase.from('memberships').select('id, member_id, start_date, expiry_date, fee'),
-          supabase.from('payments').select('membership_id, amount'),
+          supabase.from('payments').select('membership_id, amount, discount'),
         ])
 
       const expiringSoonDays = settings?.expiring_soon_days ?? 7
@@ -60,10 +60,17 @@ export default function Dashboard() {
 
       // Sum payments per membership so we can work out due amount per member.
       const paidByMembership = new Map()
-      for (const p of payments || []) {
-        paidByMembership.set(p.membership_id, (paidByMembership.get(p.membership_id) || 0) + Number(p.amount))
-      }
+for (const p of payments || []) {
+  const current = paidByMembership.get(p.membership_id) || {
+    amount: 0,
+    discount: 0,
+  }
 
+  current.amount += Number(p.amount) || 0
+  current.discount += Number(p.discount) || 0
+
+  paidByMembership.set(p.membership_id, current)
+}
       let activeMembers = 0
       let expiredMembers = 0
       let expiringSoon = 0
@@ -80,9 +87,20 @@ export default function Dashboard() {
           if (expiry <= soonCutoff) expiringSoon += 1
         }
 
-        const paid = paidByMembership.get(membership.id) || 0
-        const due = Math.max(0, Number(membership.fee) - paid)
-        totalDue += due
+        const paymentData = paidByMembership.get(membership.id) || {
+  amount: 0,
+  discount: 0,
+}
+
+const paid = paymentData.amount
+const discount = paymentData.discount
+
+const due = Math.max(
+  0,
+  Number(membership.fee) - discount - paid
+)
+
+totalDue += due
       }
 
       const totalRevenue = (payments || []).reduce((sum, p) => sum + Number(p.amount), 0)
